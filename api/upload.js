@@ -1,7 +1,5 @@
-const { put } = require('@vercel/blob');
+const { handleUpload } = require('@vercel/blob/client');
 const { isAuthenticated } = require('../lib/auth');
-
-const MAX_FILE_BYTES = 3 * 1024 * 1024;
 
 function json(res, status, payload) {
   res.status(status).setHeader('Content-Type', 'application/json; charset=utf-8');
@@ -16,10 +14,6 @@ function bodyOf(req) {
   return req.body;
 }
 
-function safeFileName(name = 'media-edukatif') {
-  return String(name).replace(/[^a-zA-Z0-9._ -]/g, '-').replace(/\s+/g, '-').slice(0, 160) || 'media-edukatif';
-}
-
 module.exports = async function handler(req, res) {
   if (req.method !== 'POST') {
     res.setHeader('Allow', 'POST');
@@ -31,23 +25,29 @@ module.exports = async function handler(req, res) {
   }
 
   try {
-    const { fileName, contentType, data } = bodyOf(req);
-    if (!fileName || !data) return json(res, 400, { error: 'Data file tidak lengkap.' });
-
-    const buffer = Buffer.from(data, 'base64');
-    if (!buffer.length || buffer.length > MAX_FILE_BYTES) {
-      return json(res, 413, { error: 'Ukuran file maksimal 3 MB untuk upload melalui form ini.' });
-    }
-
-    const blob = await put(`media/${Date.now()}-${safeFileName(fileName)}`, buffer, {
-      access: 'public',
-      contentType: contentType || 'application/octet-stream',
-      addRandomSuffix: true
+    const blobResponse = await handleUpload({
+      body: bodyOf(req),
+      request: req,
+      onBeforeGenerateToken: async () => ({
+        allowedContentTypes: [
+          'application/pdf', 'application/msword',
+          'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+          'application/vnd.ms-powerpoint',
+          'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+          'application/vnd.ms-excel',
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+          'application/zip', 'video/mp4', 'image/jpeg', 'image/png', 'image/webp'
+        ],
+        addRandomSuffix: true,
+        tokenPayload: JSON.stringify({ purpose: 'lumbung-edukatif-media' })
+      }),
+      onUploadCompleted: async ({ blob }) => {
+        console.log('Blob upload completed:', blob.pathname);
+      }
     });
-
-    return json(res, 201, { url: blob.url, pathname: blob.pathname });
+    return json(res, 200, blobResponse);
   } catch (error) {
     console.error(error);
-    return json(res, 500, { error: error.message || 'Upload file gagal.' });
+    return json(res, 400, { error: error.message || 'Token upload gagal dibuat.' });
   }
 };
