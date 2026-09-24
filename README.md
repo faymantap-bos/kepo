@@ -33,12 +33,13 @@ File `.env` tidak akan ikut karena sudah masuk `.gitignore` dan `.vercelignore`.
    ```text
    MONGODB_URI=mongodb+srv://USERNAME:PASSWORD@cluster.mongodb.net/?retryWrites=true&w=majority
    MONGODB_DB=lumbung_edukatif
+   BLOB_READ_WRITE_TOKEN=vercel_blob_rw_ganti_token_blob
    AUTH_SECRET=buat-rahasia-acak-minimal-32-karakter
    EDITOR_USERNAME=editor
    EDITOR_PASSWORD=buat-password-editor-yang-kuat
    ```
 
-   Aktifkan kelima variabel untuk **Production**, **Preview**, dan **Development**.
+   Aktifkan keenam variabel untuk **Production**, **Preview**, dan **Development**.
 
 4. Gunakan pengaturan berikut:
    - Framework Preset: **Other**
@@ -74,6 +75,8 @@ Buka `http://localhost:3000`. Untuk PowerShell Windows yang memblokir `npm.ps1`,
 ## Catatan keamanan dan arsitektur
 
 - `api/media.js` menyediakan GET publik dan operasi tulis yang hanya dapat dilakukan setelah login editor.
+- `api/download.js` mengambil file dari URL media dan mengirimkannya dengan `Content-Disposition: attachment`, sehingga tombol unduh mengunduh file alih-alih membuka preview PDF.
+- `api/upload.js` membuat token untuk direct client upload; file dikirim langsung dari browser ke Vercel Blob sehingga tidak melewati batas request Function 4,5 MB.
 - Session editor memakai cookie `HttpOnly` yang ditandatangani `AUTH_SECRET`; jangan gunakan nilai contoh untuk production.
-- File media fisik belum diunggah ke MongoDB. Aplikasi menyimpan URL/link file pada dokumen media; gunakan object storage seperti Vercel Blob jika ingin upload file sungguhan.
+- File media fisik disimpan di Vercel Blob, sedangkan MongoDB menyimpan metadata dan URL file.
 - Jangan pernah commit `.env` atau membagikan `MONGODB_URI`, `AUTH_SECRET`, dan `EDITOR_PASSWORD`.
