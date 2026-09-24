@@ -624,7 +624,7 @@
                 <div>
                     <label class="block text-slate-700 mb-1">Password Editor</label>
                     <input type="password" id="auth-pass" required autocomplete="current-password" class="w-full px-4 py-3 rounded-xl border border-pink-200 focus:border-pink-500 outline-none text-sm">
-                    <p class="text-[10px] text-pink-500 mt-1">Gunakan username dan password dari environment variable Vercel.</p>
+                    <p class="text-[10px] text-pink-500 mt-1">Gunakan username dan password editor yang terdaftar.</p>
                 </div>
 
                 <div id="auth-error" class="hidden p-3 bg-rose-50 text-rose-600 rounded-xl text-xs font-medium"></div>
@@ -732,14 +732,14 @@
                         <input type="file" id="file-picker" multiple onchange="handleFileSelection(event)" class="hidden" accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.png,.jpg,.jpeg,.webp,.mp4,.zip">
                         <i class="fa-solid fa-cloud-arrow-up text-3xl text-pink-400 mb-2"></i>
                         <p class="text-xs font-bold text-slate-700">Klik untuk memilih file dari perangkat Anda</p>
-                        <p class="text-[10px] text-slate-400 mt-1">Mendukung: PDF, DOCX, PPTX, XLSX, MP4, PNG, JPG, ZIP (Maks 50MB per file)</p>
+                        <p class="text-[10px] text-slate-400 mt-1">Mendukung: PDF, DOCX, PPTX, XLSX, MP4, PNG, JPG, dan ZIP</p>
                     </div>
 
                     <!-- Selected Files Queue Display -->
                     <div id="file-queue-container" class="hidden space-y-2">
                         <div class="flex justify-between items-center text-xs font-bold text-slate-700">
                             <span>Daftar File yang Diunggah (<span id="queue-count">0</span>):</span>
-                            <span class="text-[10px] text-pink-600 font-semibold">Siap diunggah ke Vercel Blob</span>
+                            <span class="text-[10px] text-pink-600 font-semibold">Siap diunggah</span>
                         </div>
                         <div id="file-queue-list" class="max-h-40 overflow-y-auto space-y-1.5 p-2 bg-slate-50 rounded-xl border border-slate-200">
                             <!-- File list items -->
@@ -1436,28 +1436,11 @@
         }
 
         async function uploadMediaFile(file) {
-            if (file.size > 3 * 1024 * 1024) {
-                throw new Error('Ukuran file maksimal 3 MB untuk upload melalui form ini.');
-            }
-            const bytes = new Uint8Array(await file.arrayBuffer());
-            let binary = '';
-            const chunkSize = 0x8000;
-            for (let i = 0; i < bytes.length; i += chunkSize) {
-                binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
-            }
-
-            const response = await fetch('/api/upload', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    fileName: file.name,
-                    contentType: file.type,
-                    data: btoa(binary)
-                })
+            const { upload } = await import('https://esm.sh/@vercel/blob@1.1.1/client');
+            return upload(file.name, file, {
+                access: 'public',
+                handleUploadUrl: '/api/upload'
             });
-            const result = await response.json();
-            if (!response.ok) throw new Error(result.error || 'Upload file gagal.');
-            return result;
         }
 
         async function handleSaveMedia(e) {
