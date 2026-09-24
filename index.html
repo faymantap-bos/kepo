@@ -576,7 +576,7 @@
                 <div id="hubungi-kami" class="space-y-2">
                     <h4 class="font-bold text-slate-800 text-xs uppercase tracking-wider">Hubungi Kami</h4>
                     <address class="not-italic space-y-2 text-xs">
-                        <a href="https://mail.google.com/mail/?view=cm&amp;fs=1&amp;to=peserta.38239%40ppg.belajar.id" target="_blank" rel="noopener noreferrer" class="flex items-start gap-2 hover:text-pink-600 transition-colors">
+                        <a href="https://mail.google.com/mail/?view=cm&amp;fs=1&amp;to=peserta.38239%40ppg.belajar.id" onclick="openGmailApp(event)" target="_blank" rel="noopener noreferrer" class="flex items-start gap-2 hover:text-pink-600 transition-colors">
                             <i class="fa-solid fa-envelope mt-0.5 text-pink-500"></i>
                             <span class="break-all">peserta.38239@ppg.belajar.id</span>
                         </a>
@@ -958,6 +958,38 @@
             } catch (error) {
                 console.warn('Perubahan tersimpan lokal; MongoDB belum dapat diperbarui.', error);
             }
+        }
+
+        // Open the Gmail app on phones, with Gmail Web as a fallback.
+        function openGmailApp(event) {
+            event.preventDefault();
+
+            const webUrl = event.currentTarget.href;
+            const recipient = 'peserta.38239@ppg.belajar.id';
+            const isAppleTouchDevice = navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1;
+            const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || isAppleTouchDevice;
+
+            if (!isMobile) {
+                window.open(webUrl, '_blank', 'noopener,noreferrer');
+                return;
+            }
+
+            let appOpened = false;
+            const deepLink = `googlegmail://co?to=${encodeURIComponent(recipient)}`;
+            const fallbackTimer = window.setTimeout(() => {
+                if (!appOpened) window.location.href = webUrl;
+            }, 1400);
+
+            const handleVisibilityChange = () => {
+                if (document.hidden) {
+                    appOpened = true;
+                    window.clearTimeout(fallbackTimer);
+                    document.removeEventListener('visibilitychange', handleVisibilityChange);
+                }
+            };
+
+            document.addEventListener('visibilitychange', handleVisibilityChange);
+            window.location.href = deepLink;
         }
 
         // NAVIGATION LOGIC
