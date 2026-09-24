@@ -975,10 +975,14 @@
             }
 
             let appOpened = false;
-            const deepLink = `googlegmail://co?to=${encodeURIComponent(recipient)}`;
+            const encodedRecipient = encodeURIComponent(recipient);
+            const isAndroid = /Android/i.test(navigator.userAgent);
+            const deepLink = isAndroid
+                ? `intent://co?to=${encodedRecipient}#Intent;scheme=googlegmail;package=com.google.android.gm;S.browser_fallback_url=${encodeURIComponent(webUrl)};end`
+                : `googlegmail://co?to=${encodedRecipient}`;
             const fallbackTimer = window.setTimeout(() => {
                 if (!appOpened) window.location.href = webUrl;
-            }, 1400);
+            }, 1800);
 
             const handleVisibilityChange = () => {
                 if (document.hidden) {
