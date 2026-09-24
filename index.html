@@ -1295,11 +1295,10 @@
 
             incrementDownload(id);
 
-            // Trigger browser download simulation
+            // Download melalui API same-origin agar browser menerima Content-Disposition attachment.
             const a = document.createElement('a');
-            a.href = item.fileUrl || '#';
+            a.href = `/api/download?id=${encodeURIComponent(item.id)}`;
             a.download = item.fileName || 'media-edukatif';
-            a.target = '_blank';
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
@@ -1436,7 +1435,32 @@
             renderFileQueue();
         }
 
-        function handleSaveMedia(e) {
+        async function uploadMediaFile(file) {
+            if (file.size > 3 * 1024 * 1024) {
+                throw new Error('Ukuran file maksimal 3 MB untuk upload melalui form ini.');
+            }
+            const bytes = new Uint8Array(await file.arrayBuffer());
+            let binary = '';
+            const chunkSize = 0x8000;
+            for (let i = 0; i < bytes.length; i += chunkSize) {
+                binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
+            }
+
+            const response = await fetch('/api/upload', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    fileName: file.name,
+                    contentType: file.type,
+                    data: btoa(binary)
+                })
+            });
+            const result = await response.json();
+            if (!response.ok) throw new Error(result.error || 'Upload file gagal.');
+            return result;
+        }
+
+        async function handleSaveMedia(e) {
             e.preventDefault();
 
             const editId = document.getElementById('edit-media-id').value;
@@ -1470,7 +1494,13 @@
             } else {
                 // CREATE NEW (Support Multiple Files upload batching)
                 if (currentUploadType === 'file' && selectedFilesQueue.length > 0) {
-                    selectedFilesQueue.forEach((qItem, idx) => {
+                    const newItems = [];
+                    try {
+                        for (let idx = 0; idx < selectedFilesQueue.length; idx += 1) {
+                            const qItem = selectedFilesQueue[idx];
+                            qItem.status = `Mengunggah ${idx + 1}/${selectedFilesQueue.length}`;
+                            renderFileQueue();
+                            const uploaded = await uploadMediaFile(qItem.file);
                         const ext = qItem.name.split('.').pop().toUpperCase();
                         const newMedia = {
                             id: 'med-' + Date.now() + '-' + idx,
@@ -1483,16 +1513,21 @@
                             fileType: ext,
                             fileName: qItem.name,
                             fileSize: qItem.size,
-                            fileUrl: 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
+                            fileUrl: uploaded.url,
                             externalUrl: '',
                             description: desc,
                             keywords: keywords,
                             downloadCount: 0,
                             createdAt: new Date().toISOString()
                         };
-                        mediaList.unshift(newMedia);
-                    });
-                    saveDatabase();
+                            newItems.push(newMedia);
+                        }
+                    } catch (error) {
+                        alert(error.message || 'Upload file gagal.');
+                        return;
+                    }
+                    mediaList.unshift(...newItems.reverse());
+                    await saveDatabase();
                     alert(`Berhasil menambahkan ${selectedFilesQueue.length} file ke Lumbung Edukatif!`);
                 } else if (currentUploadType === 'link') {
                     const extUrl = document.getElementById('form-external-url').value;
